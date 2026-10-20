@@ -1,0 +1,60 @@
+{
+  "samples_analyzed": 11,
+  "incident_count": 3,
+  "critical_count": 1,
+  "incidents": [
+    {
+      "service": "orders",
+      "region": "us-east-1",
+      "host": "api-01",
+      "start": "2026-10-01T09:01:00+00:00",
+      "end": "2026-10-01T09:02:00+00:00",
+      "severity": "critical",
+      "sample_count": 2,
+      "signals": [
+        "cpu_saturation",
+        "high_error_rate",
+        "high_latency",
+        "packet_loss"
+      ],
+      "suggested_checks": [
+        "Inspect process CPU, saturation, and autoscaling.",
+        "Inspect service logs, deploys, and dependency health.",
+        "Inspect request latency and upstream dependencies.",
+        "Check interface errors, paths, and packet drops."
+      ]
+    },
+    {
+      "service": "orders",
+      "region": "us-east-1",
+      "host": "api-02",
+      "start": "2026-10-01T09:01:00+00:00",
+      "end": "2026-10-01T09:02:00+00:00",
+      "severity": "warning",
+      "sample_count": 2,
+      "signals": [
+        "high_error_rate",
+        "high_latency"
+      ],
+      "suggested_checks": [
+        "Inspect service logs, deploys, and dependency health.",
+        "Inspect request latency and upstream dependencies."
+      ]
+    },
+    {
+      "service": "payments",
+      "region": "us-west-2",
+      "host": "pay-01",
+      "start": "2026-10-01T09:01:00+00:00",
+      "end": "2026-10-01T09:02:00+00:00",
+      "severity": "warning",
+      "sample_count": 2,
+      "signals": [
+        "cpu_saturation"
+      ],
+      "suggested_checks": [
+        "Inspect process CPU, saturation, and autoscaling."
+      ]
+    }
+  ]
+}
