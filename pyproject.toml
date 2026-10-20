@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cloud-incident-analyzer"
+version = "1.0.0"
+description = "Offline incident analysis for synthetic cloud-service telemetry"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.urls]
+Repository = "https://github.com/ZaidW77/cloud-incident-analyzer"
+
+[tool.setuptools]
+packages = ["cloudtriage"]

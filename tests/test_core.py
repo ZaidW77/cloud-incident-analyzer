@@ -68,6 +68,63 @@ class AnalyzeTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'line 2'):
                 load_csv(path)
 
+    def test_rejects_non_finite_metrics(self):
+        columns = ['timestamp', 'service', 'region', 'host', 'latency_ms',
+                   'packet_loss_pct', 'error_rate_pct', 'cpu_pct']
+        for metric in columns[4:]:
+            for value in ('NaN', 'Infinity', '-Infinity'):
+                with self.subTest(metric=metric, value=value):
+                    row = dict(zip(columns, ['2026-10-01T12:00:00Z', 'api',
+                                            'us-east-1', 'app-01', '25', '0', '1', '5']))
+                    row[metric] = value
+                    with tempfile.TemporaryDirectory() as temp:
+                        path = Path(temp) / 'bad.csv'
+                        with path.open('w', newline='', encoding='utf-8') as stream:
+                            writer = csv.DictWriter(stream, fieldnames=columns)
+                            writer.writeheader()
+                            writer.writerow(row)
+                        with self.assertRaisesRegex(ValueError, 'line 2'):
+                            load_csv(path)
+
+    def test_incidents_sorted_by_absolute_time_across_offsets(self):
+        early = Sample(datetime.fromisoformat('2026-10-01T09:00:00+02:00'),
+                       'api', 'us-east-1', 'early', 300, 0, 0, 20)
+        late = Sample(datetime.fromisoformat('2026-10-01T08:00:00+00:00'),
+                      'api', 'us-east-1', 'late', 300, 0, 0, 20)
+        report = analyze([late, early], min_consecutive=1)
+        self.assertEqual([event['host'] for event in report['incidents']],
+                         ['early', 'late'])
+
+    def test_csv_error_reports_physical_line_after_blank_line(self):
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / 'bad.csv'
+            path.write_text(
+                'timestamp,service,region,host,latency_ms,packet_loss_pct,error_rate_pct,cpu_pct\n'
+                '\n2026-10-01T12:00:00Z,api,us-east-1,app-01,25,110,1,5\n',
+                encoding='utf-8')
+            with self.assertRaisesRegex(ValueError, 'line 3'):
+                load_csv(path)
+
+    def test_csv_error_reports_physical_line_for_multiline_record(self):
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / 'bad.csv'
+            path.write_text(
+                'timestamp,service,region,host,latency_ms,packet_loss_pct,error_rate_pct,cpu_pct\n'
+                '2026-10-01T12:00:00Z,"api\nservice",us-east-1,app-01,25,110,1,5\n',
+                encoding='utf-8')
+            with self.assertRaisesRegex(ValueError, 'line 3'):
+                load_csv(path)
+
+    def test_rejects_csv_row_with_more_fields_than_header(self):
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / 'bad.csv'
+            path.write_text(
+                'timestamp,service,region,host,latency_ms,packet_loss_pct,error_rate_pct,cpu_pct\n'
+                '2026-10-01T12:00:00Z,api,us-east-1,app-01,25,0,1,5,unexpected\n',
+                encoding='utf-8')
+            with self.assertRaisesRegex(ValueError, 'line 2'):
+                load_csv(path)
+
 
 if __name__ == '__main__':
     unittest.main()

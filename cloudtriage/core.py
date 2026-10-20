@@ -6,6 +6,7 @@ portfolio project, not a real-time monitoring platform.
 from __future__ import annotations
 
 import csv
+import math
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
@@ -51,14 +52,18 @@ def load_csv(path: str | Path) -> list[Sample]:
         if not reader.fieldnames or not REQUIRED.issubset(reader.fieldnames):
             missing = sorted(REQUIRED - set(reader.fieldnames or []))
             raise ValueError(f'Missing CSV columns: {", ".join(missing)}')
-        for line, row in enumerate(reader, start=2):
+        for row in reader:
             try:
+                if None in row:
+                    raise ValueError('more fields than CSV header')
                 stamp = datetime.fromisoformat(row['timestamp'].replace('Z', '+00:00'))
                 if stamp.tzinfo is None:
                     raise ValueError('timestamp needs a timezone')
                 metrics = [float(row[key]) for key in (
                     'latency_ms', 'packet_loss_pct', 'error_rate_pct', 'cpu_pct'
                 )]
+                if any(not math.isfinite(x) for x in metrics):
+                    raise ValueError('metrics must be finite numbers')
                 if any(x < 0 for x in metrics) or any(x > 100 for x in metrics[1:]):
                     raise ValueError('metrics outside valid ranges')
                 labels = [row[key].strip() for key in ('service', 'region', 'host')]
@@ -66,7 +71,7 @@ def load_csv(path: str | Path) -> list[Sample]:
                     raise ValueError('blank service, region, or host')
                 result.append(Sample(stamp, *labels, *metrics))
             except (TypeError, KeyError, ValueError, AttributeError) as exc:
-                raise ValueError(f'Invalid sample at CSV line {line}: {exc}') from exc
+                raise ValueError(f'Invalid sample at CSV line {reader.line_num}: {exc}') from exc
     return sorted(result, key=lambda sample: (
         sample.service, sample.region, sample.host, sample.timestamp
     ))
@@ -141,7 +146,9 @@ def analyze(samples: Iterable[Sample], *, min_consecutive: int = 2) -> dict:
             close()
             active = []
     close()
-    events.sort(key=lambda event: (event.severity != 'critical', event.start, event.service))
+    events.sort(key=lambda event: (
+        event.severity != 'critical', datetime.fromisoformat(event.start), event.service
+    ))
     return {
         'samples_analyzed': len(sorted_samples),
         'incident_count': len(events),
